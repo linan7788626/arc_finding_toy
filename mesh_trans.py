@@ -1,35 +1,13 @@
 import numpy as np
 import pylab as pl
-#import scipy.ndimage.filters as snf
-#--------------------------------------------------------------------
-def make_r_coor(nc,dsx):
-
-    bsz = nc*dsx
-    x1 = np.linspace(0,bsz-dsx,nc)-bsz/2.0+dsx/2.0
-    x2 = np.linspace(0,bsz-dsx,nc)-bsz/2.0+dsx/2.0
-
-    x2,x1 = np.meshgrid(x1,x2)
-    return x1,x2
-def make_c_coor(nc,dsx):
-
-    bsz = nc*dsx
-    x1,x2 = np.mgrid[0:(bsz-dsx):nc*1j,0:(bsz-dsx):nc*1j]-bsz/2.0+dsx/2.0
-    return x1,x2
-
-#--------------------------------------------------------------------
-zl = 0.1
-zs = 1.0
-sigmav = 220			#km/s
-q0 = 0.2
-rc0 = 0.1
 #--------------------------------------------------------------------
 def lens_equation_sie(x1,x2,lpar):
-    xc1 = lpar[0]   #x coordinate of the center of lens (in units of Einstein radius).
-    xc2 = lpar[1]   #y coordinate of the center of lens (in units of Einstein radius).
-    q   = lpar[2]   #Ellipticity of lens.
-    rc  = lpar[3]   #Core size of lens (in units of Einstein radius).
-    re  = lpar[4]   #Einstein radius of lens.
-    pha = lpar[5]   #Orintation of lens.
+    xc1 = lpar[0]   #x coordinate of the center of the lens (in units of Einstein radius).
+    xc2 = lpar[1]   #y coordinate of the center of the lens (in units of Einstein radius).
+    q   = lpar[2]   #Ellipticity of the lens.
+    rc  = lpar[3]   #Core size of the lens (in units of Einstein radius).
+    re  = lpar[4]   #Einstein radius of the lens.
+    pha = lpar[5]   #Orientation of lens.
 
     phirad = np.deg2rad(pha)
     cosa = np.cos(phirad)
@@ -91,8 +69,10 @@ def gauss_2d(x, y, par):
 	res0 = ((xnew**2)*par[4]+(ynew**2)/par[4])/np.abs(par[1])**2
 	res = par[0]*np.exp(-0.5*res0)
 	return res
-
-def pixel_trans(x1,x2,xx1,xx2,matrix,ntmp):
+#--------------------------------------------------------------------
+# This function shows how to move points on grids to the local peaks of the luminosity map.
+#--------------------------------------------------------------------
+def pixels_trans(x1,x2,xx1,xx2,matrix,ntmp):
 
     ntmp = ntmp*1.0
     dr = 1000
@@ -146,52 +126,54 @@ def pixel_trans(x1,x2,xx1,xx2,matrix,ntmp):
         kk = kk+1
 
         if kk > 100 :
-                break
+            break
 
     return x1,x2
 
-#--------------------------------------------------------------------
-#@profile
-def main():
+#------------------------------------------------------------------------------
+if __name__ == '__main__':
     re = 1.0 # in units of arcsec
-    boxsize = 6.0*re # in the units of Einstein Radius
+    boxsize = 6.0*re # in the units of arcsec
     nnn = 1024
-    dsx = boxsize/nnn
+    dsx = boxsize/nnn # arcsec
 
     xx01 = np.linspace(-boxsize/2.0,boxsize/2.0,nnn)+0.5*dsx
     xx02 = np.linspace(-boxsize/2.0,boxsize/2.0,nnn)+0.5*dsx
     xi2,xi1 = np.meshgrid(xx01,xx02)
     #----------------------------------------------------------------------
+    # Set the parameters of the image of the source galaxy
+    #
     g_amp = 1.0   	# peak brightness value
     g_sig = 0.02  	# Gaussian "sigma" (i.e., size)
-    g_xcen = 0.03  	# x position of center (also try (0.0,0.14)
-    g_ycen = 0.1  	# y position of center
+    g_xcen = 0.03  	# x position of the center of the source (also try (0.0,0.14)
+    g_ycen = 0.1  	# y position of the center of the source
     g_axrat = 1.0 	# minor-to-major axis ratio
     g_pa = 0.0    	# major-axis position angle (degrees) c.c.w. from x axis
     gpar = np.asarray([g_amp,g_sig,g_xcen,g_ycen,g_axrat,g_pa])
     #----------------------------------------------------------------------
-    #g_source = 0.0*xi1
-    #g_source = gauss_2d(xi1,xi2,gpar) # modeling source as 2d Gaussian with input parameters.
-    #----------------------------------------------------------------------
-    xc1 = 0.0       #x coordinate of the center of lens (in units of Einstein radius).
-    xc2 = 0.0       #y coordinate of the center of lens (in units of Einstein radius).
-    q   = 0.7       #Ellipticity of lens.
-    rc  = 0.1       #Core size of lens (in units of Einstein radius).
+    # Set the parameters of the lens galaxy
+    #
+    xc1 = 0.0       #x coordinate of the center of the lens (in units of Einstein radius).
+    xc2 = 0.0       #y coordinate of the center of the lens (in units of Einstein radius).
+    q   = 0.7       #Ellipticity of the lens.
+    rc  = 0.0       #Core size of the lens (in units of Einstein radius).
     re  = 1.0       #Einstein radius of lens.
-    pha = 45.0      #Orintation of lens.
+    pha = 45.0      #Orientation of lens.
     lpar = np.asarray([xc1,xc2,q,rc,re,pha])
     #----------------------------------------------------------------------
+    # Calculate deflection angles
+    #
     ai1,ai2,mua = lens_equation_sie(xi1,xi2,lpar)
     yi1 = xi1-ai1
     yi2 = xi2-ai2
     #----------------------------------------------------------------------
-
-
+    # Produce Lensed images
+    #
     gpar = np.asarray([g_amp,g_sig,g_xcen,g_ycen,g_axrat,g_pa])
     g_lensimage = gauss_2d(yi1,yi2,gpar)
-    #g_lensimage = gauss_2d(xi1,xi2,gpar)
-
     #----------------------------------------------------------------------
+    # Set the parameters of the image of the lens galaxy
+    #
     g_amp = 5.0   	# peak brightness value
     g_sig = 0.5  	# Gaussian "sigma" (i.e., size)
     g_xcen = 0.0  	# x position of center (also try (0.0,0.14)
@@ -199,38 +181,27 @@ def main():
     g_axrat = 0.7 	# minor-to-major axis ratio
     g_pa = 45.0    	# major-axis position angle (degrees) c.c.w. from x axis
     gpar = np.asarray([g_amp,g_sig,g_xcen,g_ycen,g_axrat,g_pa])
+
+    g_lens = gauss_2d(xi1,xi2,gpar)
+    g_lensimage = g_lensimage+g_lens
     #----------------------------------------------------------------------
-    g_source = gauss_2d(xi1,xi2,gpar) # modeling source as 2d Gaussian with input parameters.
-
-    #add noise
-    #g_noise = np.random.random_sample([nnn,nnn])
-
-    g_lensimage = g_lensimage+g_source
-    #levels = [0.0,1.0,1.2,1.4,1.6,1.8,2.0,3.0,4.0,5.0,6.0]
-    #pl.figure()
-    #pl.contourf(g_lensimage,levels)
-    #pl.colorbar()
-
+    # Generate noises
+    #
     g_noise = np.random.normal(0,1,[nnn,nnn])*1.0
+    #----------------------------------------------------------------------
+    # Generate the final mock images of the lensing system
+    #
     g_lensimage = g_lensimage+g_noise
-    #g_lensimage = g_lensimage+g_noise
-
-    #smooth
-    #g_lensimage = snf.uniform_filter(g_lensimage,size=4)
-    #g_lensimage = snf.gaussian_filter(g_lensimage,1.0)
-
+    #----------------------------------------------------------------------
+    # Plot the final images
+    #
     levels = [0.0,1.0,2.0,3.0,4.0,5.0,6.0]
     pl.figure(figsize=(10,10))
     pl.contourf(g_lensimage,levels)
-
     #----------------------------------------------------------------------
+    # Sample the positions of the points on grids
+    #
     nns = 16
-    #dss = nns*dsx
-
-    #x2 = 0.85
-    #x1 = 0.095
-
-    #xn1,xn2 = pixel_trans(x1,x2,xi1,xi2,g_lensimage,dss)
 
     xp01 = np.linspace(-boxsize/2.0,boxsize/2.0,nnn/nns)+0.5*dsx*nns
     xp02 = np.linspace(-boxsize/2.0,boxsize/2.0,nnn/nns)+0.5*dsx*nns
@@ -239,72 +210,44 @@ def main():
     xp2 = xp2.reshape((nnn/nns*nnn/nns))
     xp1 = xp1.reshape((nnn/nns*nnn/nns))
 
+    #----------------------------------------------------------------------
+    # Draw the initial position of points on grids
+    #
     pl.figure(figsize=(10,10))
     pl.xlim(-3,3)
     pl.ylim(-3,3)
     pl.plot(xp1,xp2,'ko')
 
-    xr2 = xp2*0.0
+    #----------------------------------------------------------------------
+    # Move the points to the local peaks
+    #
     xr1 = xp1*0.0
+    xr2 = xp2*0.0
 
     for i in xrange(len(xp2)):
         xr1[i],xr2[i] = pixel_trans(xp1[i],xp2[i],xi1,xi2,g_lensimage,nns)
 
     X = np.vstack((xr1,xr2)).T
-
+    #----------------------------------------------------------------------
+    # Plot final positions of the points
+    #
     pl.figure(figsize=(10,10))
     pl.xlim(-3,3)
     pl.ylim(-3,3)
     pl.plot(X[:, 0], X[:, 1], 'bo')
 
+    #----------------------------------------------------------------------
+    # Colorize different structures of the points
+    #
     from sklearn.cluster import DBSCAN
-    #from sklearn.preprocessing import StandardScaler
-
     colors = np.array([x for x in 'bgrcmykbgrcmykbgrcmykbgrcmyk'])
     colors = np.hstack([colors] * 20)
-
-    #X = StandardScaler().fit_transform(X)
-
-    #dbscan = DBSCAN(eps=0.09375,min_samples=6)
     dbscan = DBSCAN(eps=0.14,min_samples=6)
-
     dbscan.fit(X)
-
     y_pred = dbscan.labels_.astype(np.int)
-
     pl.figure(figsize=(10,10))
     pl.xlim(-3,3)
     pl.ylim(-3,3)
     pl.scatter(X[:, 0], X[:, 1], color=colors[y_pred].tolist(), s=22)
 
-    #xr1 = xr1 + np.random.normal(0,1,len(xr1))*1e-6
-    #xr2 = xr2 + np.random.normal(0,1,len(xr2))*1e-6
-
-    #xr3 = xr1*1.0
-    #posx1,posx2,sdens = call_sph_sdens(xr1,xr2,xr1,boxsize,256)
-
-
-
-    #pl.figure(figsize=(10,10))
-    #pl.xlim(-3,3)
-    #pl.ylim(-3,3)
-    #pl.plot(xp1,xp2,'ko')
-
-    #pl.figure()
-    #pl.contourf(posx1,posx2,sdens)
-    #pl.show()
-
-    #pl.figure()
-    ##pl.contourf(xi2,xi1,g_lensimage)
-    #pl.plot(xp1,xp2,'ro')
-
-    #pl.figure()
-    ##pl.contourf(xi2,xi1,g_lensimage)
-    #pl.plot(xr1,xr2,'ko')
-
     pl.show()
-
-    return 0
-#------------------------------------------------------------------------------
-if __name__ == '__main__':
-    main()
